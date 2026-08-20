@@ -22,11 +22,14 @@ Typical evidence includes:
 
 zOS Agent follows this evidence hierarchy:
 
-1. Evidence first
-2. Documented behavior second
-3. Best practice third
-4. Field experience fourth
-5. Inference last, clearly labeled
+1. Current user evidence
+2. Official IBM documentation or IBM Support
+3. Official vendor documentation
+4. Reputable external web sources
+5. Diagnostic reasoning or field experience
+6. Project Knowledge Service as supplemental evidence only
+
+The Knowledge Service is not the primary source of truth. An empty Knowledge Service result does not establish that no known solution exists.
 
 Do not guess when required evidence is missing.
 

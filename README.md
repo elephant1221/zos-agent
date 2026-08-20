@@ -1,4 +1,4 @@
-# zOS Agent
+# zOS Agent Elephant
 
 Open-source AI-assisted diagnostic framework for IBM z/OS system programming.
 
@@ -27,6 +27,12 @@ zOS Agent is designed as a diagnostic, knowledge, and workflow assistant.
 
 It is not an autonomous production change tool.
 
+## Version Status
+
+The repository is at **V1.2 Public MVP** for the Public GPT / Knowledge Service integration.
+
+V1.2 provides public reads and untrusted public submissions. Trusted ingestion, trusted maturity promotion, and publication workflows belong to V1.3+ and are not required for V1.2 acceptance. See [Public Knowledge Service V1.2](docs/knowledge-service-v1.2.md) for the exact boundary.
+
 ---
 
 ## Project Navigation
@@ -35,6 +41,14 @@ It is not an autonomous production change tool.
 
 - [Diagnostic Method](docs/diagnostic-method.md)
 - [Safety and Change Control](docs/safety-and-change-control.md)
+- [Public Knowledge Service V1.2](docs/knowledge-service-v1.2.md)
+- [Public GPT Behavior](docs/gpt-behavior.md)
+- [Knowledge Service Deployment](docs/deployment.md)
+- [V1.2 Public MVP Testing](docs/testing.md)
+
+### Public GPT Action
+
+- [OpenAPI Action Schema](openapi/zos-agent-public-gpt-actions-v1.2.yaml)
 
 ### Knowledge
 
@@ -125,15 +139,18 @@ Identify:
 
 zOS Agent follows an evidence-first diagnostic method:
 
-1. Evidence from current logs or job output
-2. Documented product behavior
-3. Best practice
-4. Field experience
-5. Clearly identified inference
+1. Current user evidence
+2. Official IBM documentation or IBM Support
+3. Official vendor documentation
+4. Reputable external web sources
+5. Diagnostic reasoning or field experience
+6. Project Knowledge Service as supplemental evidence only
 
 Facts and assumptions should be separated.
 
 Read-only checks should come before changes.
+
+The Knowledge Service is not the primary source of truth. A no-result response must never be interpreted as "no known solution."
 
 See:
 
@@ -365,19 +382,17 @@ See:
 zOS Agent uses the following evidence priority:
 
 ```text
-Current technical evidence
+Current user evidence
         ↓
-Validated project diagnostic sources
+Official IBM documentation / IBM Support
         ↓
-IBM z/OS manuals matching the target release
+Official vendor documentation
         ↓
-IBM product manuals
+Reputable external web sources
         ↓
-IBM Redbooks
+Diagnostic reasoning / field experience
         ↓
-Field experience
-        ↓
-Clearly identified inference
+Project Knowledge Service (supplemental only)
 ```
 
 Current technical evidence may include:
@@ -485,6 +500,8 @@ HOST1.EXAMPLE.COM
 
 Before publishing SYSLOG, OPERLOG, JOBLOG, JES output, JCL, SMP/E output, configuration members, or USS output, review the material and remove confidential values.
 
+The Knowledge Service stores sanitized and generalized reusable findings only. Public submissions are untrusted and do not promote EXPERIENCE maturity. Application-level accumulation in the Knowledge Service is not model-weight training.
+
 ---
 
 ## Synthetic Examples
@@ -515,9 +532,25 @@ Current examples:
 
 ```text
 zos-agent/
+├── supabase/
+│   ├── migrations/
+│   ├── functions/knowledge-api/
+│   └── tests/
+│
+├── openapi/
+│   └── zos-agent-public-gpt-actions-v1.2.yaml
+│
+├── tests/
+│   ├── knowledge-api.test.mjs
+│   └── knowledge-api-handler.test.mjs
+│
 ├── docs/
 │   ├── diagnostic-method.md
-│   └── safety-and-change-control.md
+│   ├── safety-and-change-control.md
+│   ├── knowledge-service-v1.2.md
+│   ├── gpt-behavior.md
+│   ├── deployment.md
+│   └── testing.md
 │
 ├── knowledge/
 │   ├── jes2-jcl-checklist.md
@@ -531,9 +564,11 @@ zos-agent/
 │   └── smpe-apply-check-hold.md
 │
 ├── CONTRIBUTING.md
+├── CHANGELOG.md
 ├── LICENSE
 ├── README.md
-└── SECURITY.md
+├── SECURITY.md
+└── .env.example
 ```
 
 ---
@@ -551,7 +586,14 @@ The project aims to make z/OS troubleshooting:
 - Easier to review
 - Easier to maintain
 
-Future work may include:
+V1.3+ backlog items include:
+
+- MPBSDP trusted ingestion actions
+- Validated and independent trusted observation handling
+- Automatic `OBSERVED -> REPEATED` promotion from qualifying trusted observations only
+- Atomic publication with approval gates and a `PUBLISHED` audit event
+
+Additional future work may include:
 
 - More sanitized diagnostic examples
 - ABEND analysis workflows
@@ -613,7 +655,7 @@ See:
 
 ## Status
 
-This project is under active development.
+The V1.2 Public MVP implementation is present and pending Supabase, PostgreSQL, Deno, and deployed integration validation. V1.3+ trusted-ingestion and publication controls are outside V1.2 acceptance.
 
 Technical feedback, documentation improvements, sanitized examples, diagnostic workflows, and contributions are welcome.
 

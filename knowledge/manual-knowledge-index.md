@@ -6,11 +6,11 @@ This document describes the public-safe IBM documentation knowledge model used b
 
 The project does not redistribute IBM manuals or IBM Redbooks.
 
-Instead, it maintains a curated metadata index to help identify the appropriate authoritative documentation for a z/OS diagnostic question.
+Instead, its documentation model uses curated metadata to help identify the appropriate authoritative documentation for a z/OS diagnostic question.
 
 ## Current Index Scope
 
-The current knowledge index contains metadata for:
+The external knowledge map is reported to contain metadata for:
 
 - 365 IBM z/OS manuals
 - 13 IBM Redbooks
@@ -18,17 +18,20 @@ The current knowledge index contains metadata for:
 
 The primary technical target is IBM z/OS 3.1 system programming.
 
+The individual metadata records are not currently distributed in this repository. These counts describe the reported external map and are not a claim that 378 metadata rows can be inspected here. A future import should include provenance and a reproducible count.
+
 ## Evidence Priority
 
 zOS Agent uses the following evidence hierarchy:
 
-1. Current user-provided evidence
-2. Validated project diagnostic sources
-3. IBM z/OS manuals matching the target release
-4. IBM product manuals
-5. IBM Redbooks
-6. Field experience
-7. Clearly identified inference
+1. Current user evidence
+2. Official IBM documentation or IBM Support
+3. Official vendor documentation
+4. Reputable external web sources
+5. Diagnostic reasoning or field experience
+6. Project Knowledge Service as supplemental evidence only
+
+The Knowledge Service is not the primary source of truth.
 
 Current evidence includes material such as:
 
