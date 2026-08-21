@@ -194,18 +194,6 @@ function requireJsonObject(value: unknown, field: string): JsonObject {
   return value as JsonObject;
 }
 
-function requirePublicSafeDeclaration(value: JsonObject): void {
-  if (
-    value.sanitized !== true
-    || value.generalized !== true
-    || value.raw_evidence_included !== false
-  ) {
-    throw new InputError(
-      'public submissions must be sanitized and generalized and must not include raw evidence',
-    );
-  }
-}
-
 function screenText(values: string[]): void {
   if (containsSensitiveEvidence(values.join('\n'))) {
     throw new InputError('submission appears to contain sensitive or raw evidence');
@@ -218,9 +206,6 @@ const CANDIDATE_KEYS = [
   'component',
   'content',
   'applicability',
-  'sanitized',
-  'generalized',
-  'raw_evidence_included',
 ] as const;
 
 export function validateCandidateInput(value: unknown): {
@@ -232,8 +217,6 @@ export function validateCandidateInput(value: unknown): {
 } {
   const input = requireObject(value);
   assertAllowedKeys(input, CANDIDATE_KEYS);
-  requirePublicSafeDeclaration(input);
-
   if (typeof input.record_type !== 'string') {
     throw new InputError('record_type must be KNOWLEDGE or EXPERIENCE');
   }
@@ -268,9 +251,6 @@ const OBSERVATION_KEYS = [
   'record_id',
   'case_fingerprint',
   'result',
-  'sanitized',
-  'generalized',
-  'raw_evidence_included',
 ] as const;
 
 export function validateObservationInput(value: unknown): {
@@ -280,8 +260,6 @@ export function validateObservationInput(value: unknown): {
 } {
   const input = requireObject(value);
   assertAllowedKeys(input, OBSERVATION_KEYS);
-  requirePublicSafeDeclaration(input);
-
   const p_record_id = normalizeRecordId(input.record_id);
   const p_case_fingerprint = requireText(
     input.case_fingerprint,
