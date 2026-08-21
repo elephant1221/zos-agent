@@ -1,0 +1,4 @@
+project_id = "zos-agent"
+
+[functions.knowledge-api]
+verify_jwt = false

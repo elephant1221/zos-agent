@@ -34,6 +34,9 @@ Never submit real:
 - LPAR names
 - Production job names
 - Change records or ticket numbers
+- Internal URLs
+- Raw SYSLOG, OPERLOG, or JOBLOG
+- Raw dumps
 - Proprietary business data
 
 Use sanitized example values such as:
@@ -55,6 +58,28 @@ Before submitting SYSLOG, OPERLOG, JOBLOG, JES output, JCL, SMP/E output, PARMLI
 2. Remove credentials and secrets.
 3. Replace internal identifiers with safe placeholders.
 4. Review the material again before publishing.
+
+Raw customer-sensitive evidence must not be stored in the Knowledge Service by default. Store sanitized and generalized reusable technical findings only.
+
+## Public V1.2 Credentials
+
+V1.2 runtime configuration uses:
+
+- `SUPABASE_URL`: server-side project endpoint
+- `SUPABASE_SERVICE_ROLE_KEY`: server-side database credential
+- `ZOS_KNOWLEDGE_API_KEY`: Public GPT Action credential
+
+Public GPT must receive only the `ZOS_KNOWLEDGE_API_KEY` value through the configured `X-ZOS-Knowledge-Key` authentication header.
+
+Public GPT must never receive `SUPABASE_SERVICE_ROLE_KEY`. Trusted-ingestion and publication-approval credentials belong to V1.3+ and are not defined or configured by V1.2.
+
+Do not commit real values for any runtime variable. `.env.example` contains placeholders only; real values belong in the Supabase secret manager and the Public GPT Action secret configuration as applicable.
+
+Fresh installations remove direct runtime table DML and use restricted database RPCs. The existing non-empty Knowledge Service currently retains `service_role` direct table DML during the coordinated RPC transition; those grants must not be revoked until the replacement Edge Function is deployed and validated.
+
+The existing maturity functions currently inherit `PUBLIC EXECUTE`, including the `SECURITY DEFINER` function that recomputes maturity and may insert audit state. Public V1.2 does not change these ACLs. Any hardening requires a separate dependency review, approval, and runtime validation.
+
+Public submissions remain `UNASSESSED` and untrusted. Automated input screening is defense in depth and does not replace privacy review.
 
 ## Production Safety
 

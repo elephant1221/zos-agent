@@ -32,3 +32,4 @@ SYSTEM=LPAR1
           CONDITION=INSUFFICIENT SPACE
 10:01:08  STEP020 unable to continue
 10:01:09  STEP020 terminated
+```

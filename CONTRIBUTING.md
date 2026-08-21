@@ -34,6 +34,8 @@ Before opening an issue, pull request, or uploading an example, sanitize:
 - Internal application names
 - Production job names
 - Ticket or change numbers
+- Internal URLs
+- Raw SYSLOG, OPERLOG, JOBLOG, or dumps
 - Proprietary business information
 
 Use example values such as:
@@ -72,6 +74,22 @@ Please keep technical content:
 Do not copy copyrighted manuals, proprietary documentation, or customer material into this repository.
 
 References to vendor documentation may be provided using publication titles, publication numbers, or public documentation links.
+
+## Knowledge Service Contributions
+
+Knowledge Service contributions must preserve the V1.2 trust boundary:
+
+- Public candidates are `CANDIDATE`, `UNASSESSED`, and `PUBLIC_GPT`.
+- Public observations are `PUBLIC_GPT`, unvalidated, non-independent, and `UNASSESSED`.
+- Public observations never promote EXPERIENCE maturity.
+- Public reads return only `PUBLISHED + PASS` records.
+- Public GPT receives only `X-ZOS-Knowledge-Key`.
+
+Do not add MPBSDP ingestion or publication behavior to the Public V1.2 routes. Those V1.3+ capabilities require separate design authority, credentials, gates, and regression tests.
+
+Never commit real API keys, tokens, Supabase credentials, customer evidence, or local `.env` files. Use placeholder values in examples.
+
+When changing database lifecycle behavior, include an auditable database event and a regression test that proves the state change and event are consistent.
 
 ## Issues
 
