@@ -17,6 +17,8 @@ All notable changes to this project are documented in this file.
 - Placeholder-only environment example and local secret exclusions
 - Architecture, GPT behavior, deployment, and testing documentation
 - Unit and database regression tests for the Public MVP scope
+- Live-derived existing-environment baseline evidence and additive RPC migration track
+- Coordinated existing-environment ledger, cutover, validation, and rollback instructions
 
 ### Security
 
@@ -27,6 +29,8 @@ All notable changes to this project are documented in this file.
 - Enforced append-only audit events and restrictive parent deletion
 - Added public submission field ownership, bounds, and sensitive-evidence screening
 - Added standalone token, JWT, internal-hostname, request-size, and database-domain error controls
+- Preserved transition-period `service_role` table DML while isolating the future RPC cutover
+- Documented the existing maturity-function `PUBLIC EXECUTE` exposure for separate review without changing it
 
 ### V1.3+ Backlog
 

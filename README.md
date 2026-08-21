@@ -45,6 +45,7 @@ V1.2 provides public reads and untrusted public submissions. Trusted ingestion, 
 - [Public GPT Behavior](docs/gpt-behavior.md)
 - [Knowledge Service Deployment](docs/deployment.md)
 - [V1.2 Public MVP Testing](docs/testing.md)
+- [Existing Supabase Runtime Package](docs/existing-supabase-runtime-package.md)
 
 ### Public GPT Action
 
@@ -534,6 +535,7 @@ Current examples:
 zos-agent/
 ├── supabase/
 │   ├── migrations/
+│   ├── existing-environment/
 │   ├── functions/knowledge-api/
 │   └── tests/
 │
@@ -542,7 +544,8 @@ zos-agent/
 │
 ├── tests/
 │   ├── knowledge-api.test.mjs
-│   └── knowledge-api-handler.test.mjs
+│   ├── knowledge-api-handler.test.mjs
+│   └── live-existing-environment-package.test.mjs
 │
 ├── docs/
 │   ├── diagnostic-method.md
@@ -550,6 +553,7 @@ zos-agent/
 │   ├── knowledge-service-v1.2.md
 │   ├── gpt-behavior.md
 │   ├── deployment.md
+│   ├── existing-supabase-runtime-package.md
 │   └── testing.md
 │
 ├── knowledge/

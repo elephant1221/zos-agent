@@ -23,7 +23,7 @@ const ROUTES = new Map<string, PublicV1Action>([
   ['POST:add_observation', 'add_observation'],
 ]);
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const LIVE_RECORD_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/#+-]{0,199}$/;
 
 const SECRET_PATTERNS = [
   /\b(?:api[_ -]?key|access[_ -]?token|refresh[_ -]?token|password|passwd|secret)\s*[:=]/i,
@@ -81,22 +81,49 @@ export function resolveRoute(method: string, action: string | null): PublicV1Act
 export function normalizeSearchInput(
   query: string | null,
   limit: string | number | undefined,
-): { p_query: string; p_limit: number } {
+  component: string | null = null,
+  recordType: string | null = null,
+): {
+  p_query: string;
+  p_component: string | null;
+  p_record_type: 'KNOWLEDGE' | 'EXPERIENCE' | null;
+  p_limit: number;
+} {
   const p_query = String(query ?? '').trim().replace(/\s+/g, ' ');
-  if (!p_query) throw new InputError('q is required');
   if (p_query.length > 200) throw new InputError('q must not exceed 200 characters');
+
+  const normalizedComponent = String(component ?? '').trim();
+  if (normalizedComponent.length > 100) {
+    throw new InputError('component must not exceed 100 characters');
+  }
+
+  const normalizedRecordType = String(recordType ?? '').trim().toUpperCase();
+  if (
+    normalizedRecordType
+    && normalizedRecordType !== 'KNOWLEDGE'
+    && normalizedRecordType !== 'EXPERIENCE'
+  ) {
+    throw new InputError('record_type must be KNOWLEDGE or EXPERIENCE');
+  }
 
   const parsed = typeof limit === 'number' ? limit : Number.parseInt(limit ?? '20', 10);
   const finite = Number.isFinite(parsed) ? Math.trunc(parsed) : 20;
   const p_limit = Math.min(20, Math.max(1, finite));
-  return { p_query, p_limit };
+  return {
+    p_query,
+    p_component: normalizedComponent || null,
+    p_record_type: normalizedRecordType as 'KNOWLEDGE' | 'EXPERIENCE' | null || null,
+    p_limit,
+  };
 }
 
 export function normalizeRecordId(value: unknown): string {
-  if (typeof value !== 'string' || !UUID_PATTERN.test(value)) {
-    throw new InputError('record_id must be a UUID');
+  if (typeof value !== 'string') throw new InputError('record_id must be a live text identifier');
+  const normalized = value.trim();
+  if (!LIVE_RECORD_ID_PATTERN.test(normalized)) {
+    throw new InputError('record_id must be a valid live text identifier');
   }
-  return value.toLowerCase();
+  return normalized;
 }
 
 export function validateContentLength(value: string | null, maximum = 20_000): void {
@@ -118,6 +145,13 @@ export function classifyRpcError(code: string): {
       status: 400,
       code: 'INVALID_REQUEST',
       message: 'Knowledge Service rejected the request',
+    };
+  }
+  if (code === '23505') {
+    return {
+      status: 409,
+      code: 'DUPLICATE_OBSERVATION',
+      message: 'Observation already exists for this record and case fingerprint',
     };
   }
   return {
@@ -153,6 +187,13 @@ function requireText(value: unknown, field: string, minimum: number, maximum: nu
   return normalized;
 }
 
+function requireJsonObject(value: unknown, field: string): JsonObject {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new InputError(`${field} must be a JSON object`);
+  }
+  return value as JsonObject;
+}
+
 function requirePublicSafeDeclaration(value: JsonObject): void {
   if (
     value.sanitized !== true
@@ -184,13 +225,10 @@ const CANDIDATE_KEYS = [
 
 export function validateCandidateInput(value: unknown): {
   p_record_type: 'KNOWLEDGE' | 'EXPERIENCE';
-  p_title: string;
   p_component: string;
-  p_content: string;
-  p_applicability: string;
-  p_sanitized: true;
-  p_generalized: true;
-  p_raw_evidence_included: false;
+  p_title: string;
+  p_content: JsonObject;
+  p_applicability: JsonObject | null;
 } {
   const input = requireObject(value);
   assertAllowedKeys(input, CANDIDATE_KEYS);
@@ -206,25 +244,30 @@ export function validateCandidateInput(value: unknown): {
 
   const p_title = requireText(input.title, 'title', 3, 200);
   const p_component = requireText(input.component, 'component', 1, 100);
-  const p_content = requireText(input.content, 'content', 3, 8000);
-  const p_applicability = requireText(input.applicability, 'applicability', 3, 2000);
-  screenText([p_title, p_component, p_content, p_applicability]);
+  const p_content = requireJsonObject(input.content, 'content');
+  const p_applicability = input.applicability == null
+    ? null
+    : requireJsonObject(input.applicability, 'applicability');
+  screenText([
+    p_title,
+    p_component,
+    JSON.stringify(p_content),
+    JSON.stringify(p_applicability),
+  ]);
 
   return {
     p_record_type,
-    p_title,
     p_component,
+    p_title,
     p_content,
     p_applicability,
-    p_sanitized: true,
-    p_generalized: true,
-    p_raw_evidence_included: false,
   };
 }
 
 const OBSERVATION_KEYS = [
   'record_id',
-  'content',
+  'case_fingerprint',
+  'result',
   'sanitized',
   'generalized',
   'raw_evidence_included',
@@ -232,24 +275,28 @@ const OBSERVATION_KEYS = [
 
 export function validateObservationInput(value: unknown): {
   p_record_id: string;
-  p_content: string;
-  p_sanitized: true;
-  p_generalized: true;
-  p_raw_evidence_included: false;
+  p_case_fingerprint: string;
+  p_result: string | null;
 } {
   const input = requireObject(value);
   assertAllowedKeys(input, OBSERVATION_KEYS);
   requirePublicSafeDeclaration(input);
 
   const p_record_id = normalizeRecordId(input.record_id);
-  const p_content = requireText(input.content, 'content', 3, 8000);
-  screenText([p_content]);
+  const p_case_fingerprint = requireText(
+    input.case_fingerprint,
+    'case_fingerprint',
+    1,
+    200,
+  );
+  const p_result = input.result == null
+    ? null
+    : requireText(input.result, 'result', 1, 8000);
+  screenText([p_case_fingerprint, p_result ?? '']);
 
   return {
     p_record_id,
-    p_content,
-    p_sanitized: true,
-    p_generalized: true,
-    p_raw_evidence_included: false,
+    p_case_fingerprint,
+    p_result,
   };
 }

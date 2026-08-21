@@ -31,9 +31,11 @@ The public integration has three layers:
 
 1. Public GPT calls one Supabase Edge Function using `X-ZOS-Knowledge-Key`.
 2. `knowledge-api` validates the action, payload, bounds, and common sensitive-evidence patterns.
-3. Database RPCs enforce status, privacy, provenance, trust attributes, visibility, and audit events.
+3. Database RPCs enforce status, privacy, provenance, trust attributes, visibility, and atomic Public write audit events.
 
 Public GPT never connects directly to the database and never receives the Supabase service-role credential.
+
+The repository supports two deliberately separate database tracks: the clean-install schema and a live-compatible existing-environment package. The existing environment retains text record IDs, JSONB content/applicability, its current checks, maturity trigger, private capabilities, and publication function.
 
 ## Data Model
 
@@ -95,7 +97,7 @@ The Edge Function uses query-parameter routing:
 | --- | --- | --- |
 | GET | `health` | Return service identity and version status |
 | GET | `search` | Search public records |
-| GET | `record` | Read one public record by UUID |
+| GET | `record` | Read one public record by live text ID |
 | POST | `create_candidate` | Submit an untrusted public candidate |
 | POST | `add_observation` | Add an untrusted public observation to a candidate |
 
@@ -120,14 +122,15 @@ Candidates, failed privacy reviews, and unassessed records are hidden. V1.2 has 
 
 Search behavior is deliberately small and deterministic:
 
-- Split `q` on whitespace.
-- Normalize repeated whitespace.
-- Require every distinct term to match at least one searchable field.
+- Normalize and split `q` into distinct terms.
+- Allow a record to match one or more terms.
+- Rank records matching more distinct terms above weaker matches.
 - Search `title`, `component`, `content`, and `applicability`.
-- Rank each matched term using `title = 8`, `component = 4`, `content = 2`, and `applicability = 1`.
+- Rank each matched term using `title = 5`, `component = 3`, `content = 2`, and `applicability = 1`.
+- Add the validated exact-phrase bonus.
 - Cap results at 20, regardless of the requested limit.
 
-For example, `atomic regression testing` can match with different terms located in different fields, but all three terms must be present somewhere in the record.
+For example, `atomic regression testing` can return records matching one or more terms across different fields. Stronger multi-term matches rank first. This higher-recall behavior is intentional because the Knowledge Service is supplemental evidence and GPT remains responsible for judging applicability.
 
 ## Application-Level Experience Accumulation
 
@@ -149,8 +152,10 @@ Public GPT receives only the `ZOS_KNOWLEDGE_API_KEY` value through `X-ZOS-Knowle
 
 ## Privacy Boundary
 
-The service stores only reusable technical findings. It has no raw log or dump field. Public submission flags must explicitly state that content is sanitized, generalized, and contains no raw evidence. The Edge Function rejects common secret, internal URL, internal IP, private-key, and raw-log markers.
+The service stores only reusable technical findings. It has no raw log or dump field. Public submission flags are client safety declarations only; they are not trusted database state and are not passed as RPC provenance parameters. The RPC owns all status, provenance, trust, privacy, and maturity values. The Edge Function rejects common secret, internal URL, internal IP, private-key, and raw-log markers.
 
 Automated screening is a defense in depth measure, not proof of sanitization. All public candidates remain `UNASSESSED` until a separate privacy review marks them safe.
+
+See [Existing Supabase Public V1.2 Runtime Package](existing-supabase-runtime-package.md) for migration-track separation, runtime validation, and rollback.
 
 Common standalone token and JWT formats, internal URLs, internal hostname suffixes, non-documentation IPv4 addresses, private-key markers, and raw-log markers are rejected. Pattern matching cannot reliably identify every customer name or proprietary fact, so human privacy review remains mandatory.

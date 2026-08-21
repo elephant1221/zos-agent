@@ -57,7 +57,9 @@ async function secureEqual(left: string, right: string): Promise<boolean> {
 async function readJson(request: Request): Promise<unknown> {
   validateContentLength(request.headers.get('content-length'));
   const text = await request.text();
-  if (text.length > 20_000) throw new InputError('request body is too large', 413);
+  if (new TextEncoder().encode(text).byteLength > 20_000) {
+    throw new InputError('request body is too large', 413);
+  }
   try {
     return JSON.parse(text);
   } catch {
@@ -88,8 +90,9 @@ export function createKnowledgeApiHandler(config: KnowledgeApiConfig) {
 
     if (route === 'health') {
       return response(200, {
-        ok: true,
-        data: { status: 'ok', service: 'knowledge-api', version: 'V1.2' },
+        status: 'ok',
+        service: 'zOS Agent Knowledge Service',
+        version: 'V1.2',
       });
     }
 
@@ -102,6 +105,8 @@ export function createKnowledgeApiHandler(config: KnowledgeApiConfig) {
         rpcArguments = normalizeSearchInput(
           url.searchParams.get('q'),
           url.searchParams.get('limit') ?? undefined,
+          url.searchParams.get('component'),
+          url.searchParams.get('record_type'),
         );
       } else if (route === 'record') {
         rpcName = 'get_public_record';
@@ -121,14 +126,20 @@ export function createKnowledgeApiHandler(config: KnowledgeApiConfig) {
         return errorResponse(classified.status, classified.code, classified.message);
       }
 
-      if (route === 'record' && Array.isArray(data) && data.length === 0) {
+      if (route === 'record' && data == null) {
         return errorResponse(404, 'RECORD_NOT_FOUND', 'Published record not found');
       }
 
-      return response(route === 'create_candidate' || route === 'add_observation' ? 201 : 200, {
-        ok: true,
-        data,
-      });
+      const successBody = route === 'record'
+        ? { status: 'ok', record: data }
+        : data !== null && typeof data === 'object' && !Array.isArray(data)
+        ? { status: 'ok', ...data as Record<string, unknown> }
+        : { status: 'ok', data };
+
+      return response(
+        route === 'create_candidate' || route === 'add_observation' ? 201 : 200,
+        successBody,
+      );
     } catch (error) {
       if (error instanceof InputError) {
         return errorResponse(error.status, 'INVALID_INPUT', error.message);

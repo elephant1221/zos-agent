@@ -50,8 +50,9 @@ test('returns authenticated health without calling the database', async () => {
   const response = await handler(request('?action=health'));
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), {
-    ok: true,
-    data: { status: 'ok', service: 'knowledge-api', version: 'V1.2' },
+    status: 'ok',
+    service: 'zOS Agent Knowledge Service',
+    version: 'V1.2',
   });
   assert.equal(calls, 0);
 });
@@ -59,23 +60,23 @@ test('returns authenticated health without calling the database', async () => {
 test('routes a successful public record read and returns the RPC result', async () => {
   const calls = [];
   const record = {
-    id: '10000000-0000-4000-8000-000000000001',
+    id: 'PUB-K-JES2-10000000-0000-4000-8000-000000000001',
     title: 'Published public record',
   };
   const handler = configuredHandler(async (name, args) => {
     calls.push({ name, args });
-    return { data: [record], error: null };
+    return { data: record, error: null };
   });
 
   const response = await handler(request(
-    '?action=record&id=10000000-0000-4000-8000-000000000001',
+    '?action=record&id=PUB-K-JES2-10000000-0000-4000-8000-000000000001',
   ));
 
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { ok: true, data: [record] });
+  assert.deepEqual(await response.json(), { status: 'ok', record });
   assert.deepEqual(calls, [{
     name: 'get_public_record',
-    args: { p_record_id: '10000000-0000-4000-8000-000000000001' },
+    args: { p_record_id: 'PUB-K-JES2-10000000-0000-4000-8000-000000000001' },
   }]);
 });
 
@@ -83,7 +84,10 @@ test('routes public candidate creation and returns HTTP 201', async () => {
   const calls = [];
   const handler = configuredHandler(async (name, args) => {
     calls.push({ name, args });
-    return { data: '10000000-0000-4000-8000-000000000002', error: null };
+    return {
+      data: { record_id: '10000000-0000-4000-8000-000000000002' },
+      error: null,
+    };
   });
   const response = await handler(request('?action=create_candidate', {
     method: 'POST',
@@ -92,8 +96,8 @@ test('routes public candidate creation and returns HTTP 201', async () => {
       record_type: 'EXPERIENCE',
       title: 'Generalized allocation pattern',
       component: 'DFSMS',
-      content: 'A sanitized reusable technical finding.',
-      applicability: 'Applies to generalized allocation failures.',
+      content: { finding: 'A sanitized reusable technical finding.' },
+      applicability: { scope: 'Generalized allocation failures.' },
       sanitized: true,
       generalized: true,
       raw_evidence_included: false,
@@ -102,20 +106,17 @@ test('routes public candidate creation and returns HTTP 201', async () => {
 
   assert.equal(response.status, 201);
   assert.deepEqual(await response.json(), {
-    ok: true,
-    data: '10000000-0000-4000-8000-000000000002',
+    status: 'ok',
+    record_id: '10000000-0000-4000-8000-000000000002',
   });
   assert.deepEqual(calls, [{
     name: 'create_public_candidate',
     args: {
       p_record_type: 'EXPERIENCE',
-      p_title: 'Generalized allocation pattern',
       p_component: 'DFSMS',
-      p_content: 'A sanitized reusable technical finding.',
-      p_applicability: 'Applies to generalized allocation failures.',
-      p_sanitized: true,
-      p_generalized: true,
-      p_raw_evidence_included: false,
+      p_title: 'Generalized allocation pattern',
+      p_content: { finding: 'A sanitized reusable technical finding.' },
+      p_applicability: { scope: 'Generalized allocation failures.' },
     },
   }]);
 });
@@ -124,14 +125,18 @@ test('routes public observation creation and returns HTTP 201', async () => {
   const calls = [];
   const handler = configuredHandler(async (name, args) => {
     calls.push({ name, args });
-    return { data: '10000000-0000-4000-8000-000000000003', error: null };
+    return {
+      data: { observation_id: '10000000-0000-4000-8000-000000000003' },
+      error: null,
+    };
   });
   const response = await handler(request('?action=add_observation', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      record_id: '10000000-0000-4000-8000-000000000001',
-      content: 'A sanitized generalized observation.',
+      record_id: 'PUB-E-DFSMS-10000000-0000-4000-8000-000000000001',
+      case_fingerprint: 'synthetic-case-001',
+      result: 'A sanitized generalized observation.',
       sanitized: true,
       generalized: true,
       raw_evidence_included: false,
@@ -140,43 +145,61 @@ test('routes public observation creation and returns HTTP 201', async () => {
 
   assert.equal(response.status, 201);
   assert.deepEqual(await response.json(), {
-    ok: true,
-    data: '10000000-0000-4000-8000-000000000003',
+    status: 'ok',
+    observation_id: '10000000-0000-4000-8000-000000000003',
   });
   assert.deepEqual(calls, [{
     name: 'add_public_observation',
     args: {
-      p_record_id: '10000000-0000-4000-8000-000000000001',
-      p_content: 'A sanitized generalized observation.',
-      p_sanitized: true,
-      p_generalized: true,
-      p_raw_evidence_included: false,
+      p_record_id: 'PUB-E-DFSMS-10000000-0000-4000-8000-000000000001',
+      p_case_fingerprint: 'synthetic-case-001',
+      p_result: 'A sanitized generalized observation.',
     },
   }]);
 });
 
 test('maps an empty public record result to HTTP 404', async () => {
-  const handler = configuredHandler(async () => ({ data: [], error: null }));
+  const handler = configuredHandler(async () => ({ data: null, error: null }));
   const response = await handler(request(
-    '?action=record&id=10000000-0000-4000-8000-000000000001',
+    '?action=record&id=PUB-K-JES2-10000000-0000-4000-8000-000000000001',
   ));
 
   assert.equal(response.status, 404);
   assert.equal((await response.json()).error.code, 'RECORD_NOT_FOUND');
 });
 
-test('routes normalized search input to the public search RPC', async () => {
+test('routes normalized any-term search filters to the public search RPC', async () => {
   const calls = [];
   const handler = configuredHandler(async (name, args) => {
     calls.push({ name, args });
-    return { data: [{ id: '10000000-0000-4000-8000-000000000001' }], error: null };
+    return {
+      data: {
+        query: { q: 'atomic regression testing' },
+        visibility: { status: 'PUBLISHED', privacy_status: 'PASS' },
+        count: 1,
+        records: [{ id: 'K-EXISTING-LIVE-001' }],
+      },
+      error: null,
+    };
   });
 
-  const response = await handler(request('?action=search&q=%20atomic%20%20regression%20testing%20&limit=99'));
+  const response = await handler(request('?action=search&q=%20atomic%20%20regression%20testing%20&limit=99&component=DFSMS&record_type=EXPERIENCE'));
   assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    status: 'ok',
+    query: { q: 'atomic regression testing' },
+    visibility: { status: 'PUBLISHED', privacy_status: 'PASS' },
+    count: 1,
+    records: [{ id: 'K-EXISTING-LIVE-001' }],
+  });
   assert.deepEqual(calls, [{
     name: 'search_public_records',
-    args: { p_query: 'atomic regression testing', p_limit: 20 },
+    args: {
+      p_query: 'atomic regression testing',
+      p_component: 'DFSMS',
+      p_record_type: 'EXPERIENCE',
+      p_limit: 20,
+    },
   }]);
 });
 
@@ -268,6 +291,22 @@ test('rejects a body whose declared Content-Length understates its actual size',
       'content-length': '2',
     },
     body: 'x'.repeat(20_001),
+  }));
+
+  assert.equal(response.status, 413);
+  assert.equal(calls, 0);
+});
+
+test('measures the actual request limit in UTF-8 bytes rather than JavaScript characters', async () => {
+  let calls = 0;
+  const handler = configuredHandler(async () => {
+    calls += 1;
+    return { data: null, error: null };
+  });
+  const response = await handler(request('?action=create_candidate', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ evidence: 'é'.repeat(10_001) }),
   }));
 
   assert.equal(response.status, 413);

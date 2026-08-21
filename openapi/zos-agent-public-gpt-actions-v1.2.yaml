@@ -23,19 +23,37 @@ paths:
         - name: q
           in: query
           required: false
-          description: Required for search. Whitespace-delimited terms are all matched across searchable fields.
+          description: Optional search text. Records may match one or more terms; stronger multi-term and exact-phrase matches rank first.
           schema:
             type: string
             minLength: 1
             maxLength: 200
           example: atomic regression testing
+        - name: component
+          in: query
+          required: false
+          description: Optional live component filter.
+          schema:
+            type: string
+            maxLength: 100
+        - name: record_type
+          in: query
+          required: false
+          description: Optional record type filter.
+          schema:
+            type: string
+            enum:
+              - KNOWLEDGE
+              - EXPERIENCE
         - name: id
           in: query
           required: false
-          description: Required for record. UUID of the published record.
+          description: Required for record. Live text identifier of the published record.
           schema:
             type: string
-            format: uuid
+            minLength: 1
+            maxLength: 200
+            pattern: '^[A-Za-z0-9][A-Za-z0-9._:/#+-]{0,199}$'
         - name: limit
           in: query
           required: false
@@ -135,7 +153,6 @@ components:
         - title
         - component
         - content
-        - applicability
         - sanitized
         - generalized
         - raw_evidence_included
@@ -154,38 +171,46 @@ components:
           minLength: 1
           maxLength: 100
         content:
-          type: string
-          minLength: 3
-          maxLength: 8000
+          type: object
+          additionalProperties: true
         applicability:
-          type: string
-          minLength: 3
-          maxLength: 2000
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: 'null'
         sanitized:
           type: boolean
           const: true
+          description: Client safety declaration only; it is not trusted database state or an RPC provenance parameter.
         generalized:
           type: boolean
           const: true
         raw_evidence_included:
           type: boolean
           const: false
+          description: Client safety declaration only; the RPC independently fixes live provenance raw_evidence_included to false.
     AddObservationRequest:
       type: object
       additionalProperties: false
       required:
         - record_id
-        - content
+        - case_fingerprint
         - sanitized
         - generalized
         - raw_evidence_included
       properties:
         record_id:
           type: string
-          format: uuid
-        content:
+          minLength: 1
+          maxLength: 200
+          pattern: '^[A-Za-z0-9][A-Za-z0-9._:/#+-]{0,199}$'
+        case_fingerprint:
           type: string
-          minLength: 3
+          minLength: 1
+          maxLength: 200
+        result:
+          type: string
+          minLength: 1
           maxLength: 8000
         sanitized:
           type: boolean
@@ -198,15 +223,13 @@ components:
           const: false
     SuccessResponse:
       type: object
-      additionalProperties: false
+      additionalProperties: true
       required:
-        - ok
-        - data
+        - status
       properties:
-        ok:
-          type: boolean
-          const: true
-        data: {}
+        status:
+          type: string
+          const: ok
     ErrorResponse:
       type: object
       additionalProperties: false

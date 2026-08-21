@@ -13,12 +13,13 @@ import {
   validateObservationInput,
 } from '../supabase/functions/knowledge-api/domain.ts';
 
-test('normalizes record identifiers and rejects malformed values', () => {
+test('normalizes live text record identifiers and rejects malformed values', () => {
   assert.equal(
-    normalizeRecordId('10000000-0000-4000-8000-0000000000AA'),
-    '10000000-0000-4000-8000-0000000000aa',
+    normalizeRecordId(' PUB-E-DFSMS-10000000-0000-4000-8000-0000000000AA '),
+    'PUB-E-DFSMS-10000000-0000-4000-8000-0000000000AA',
   );
-  assert.throws(() => normalizeRecordId('not-a-uuid'), InputError);
+  assert.equal(normalizeRecordId('K-EXISTING-LIVE-001'), 'K-EXISTING-LIVE-001');
+  assert.throws(() => normalizeRecordId('contains whitespace'), InputError);
   assert.throws(() => normalizeRecordId(null), InputError);
 });
 
@@ -36,20 +37,25 @@ test('routes only the five Public V1.2 method and action combinations', () => {
   assert.equal(resolveRoute('POST', 'publish_record'), null);
 });
 
-test('normalizes multi-keyword search and clamps the result limit', () => {
-  assert.deepEqual(normalizeSearchInput('  atomic   regression\ttesting  ', '999'), {
+test('normalizes live any-term search filters and clamps the result limit', () => {
+  assert.deepEqual(normalizeSearchInput(
+    '  atomic   regression\ttesting  ',
+    '999',
+    ' DFSMS ',
+    'experience',
+  ), {
     p_query: 'atomic regression testing',
+    p_component: 'DFSMS',
+    p_record_type: 'EXPERIENCE',
     p_limit: 20,
   });
-  assert.deepEqual(normalizeSearchInput('allocation', '0'), {
-    p_query: 'allocation',
+  assert.deepEqual(normalizeSearchInput('', '0', null, null), {
+    p_query: '',
+    p_component: null,
+    p_record_type: null,
     p_limit: 1,
   });
-  assert.deepEqual(normalizeSearchInput('allocation', undefined), {
-    p_query: 'allocation',
-    p_limit: 20,
-  });
-  assert.throws(() => normalizeSearchInput('   ', '10'), InputError);
+  assert.throws(() => normalizeSearchInput('allocation', '10', null, 'FORGED'), InputError);
 });
 
 test('candidate validation returns only public RPC arguments', () => {
@@ -57,20 +63,17 @@ test('candidate validation returns only public RPC arguments', () => {
     record_type: 'experience',
     title: ' Generalized allocation pattern ',
     component: ' DFSMS ',
-    content: ' A sanitized reusable technical finding. ',
-    applicability: ' Applies to generalized allocation failures. ',
+    content: { finding: 'A sanitized reusable technical finding.' },
+    applicability: { scope: 'Generalized allocation failures.' },
     sanitized: true,
     generalized: true,
     raw_evidence_included: false,
   }), {
     p_record_type: 'EXPERIENCE',
-    p_title: 'Generalized allocation pattern',
     p_component: 'DFSMS',
-    p_content: 'A sanitized reusable technical finding.',
-    p_applicability: 'Applies to generalized allocation failures.',
-    p_sanitized: true,
-    p_generalized: true,
-    p_raw_evidence_included: false,
+    p_title: 'Generalized allocation pattern',
+    p_content: { finding: 'A sanitized reusable technical finding.' },
+    p_applicability: { scope: 'Generalized allocation failures.' },
   });
 });
 
@@ -99,8 +102,8 @@ test('public submission declarations must be sanitized and generalized without r
     record_type: 'KNOWLEDGE',
     title: 'Generalized check',
     component: 'JES2',
-    content: 'A sanitized reusable technical finding.',
-    applicability: 'Applies to generalized checks.',
+    content: { finding: 'A sanitized reusable technical finding.' },
+    applicability: { scope: 'Generalized checks.' },
     sanitized: true,
     generalized: true,
     raw_evidence_included: false,
@@ -151,6 +154,11 @@ test('classifies stable database domain errors as client errors', () => {
     code: 'INVALID_REQUEST',
     message: 'Knowledge Service rejected the request',
   });
+  assert.deepEqual(classifyRpcError('23505'), {
+    status: 409,
+    code: 'DUPLICATE_OBSERVATION',
+    message: 'Observation already exists for this record and case fingerprint',
+  });
   assert.deepEqual(classifyRpcError('XX000'), {
     status: 500,
     code: 'DATABASE_ERROR',
@@ -170,19 +178,18 @@ test('rejects an oversized declared request body before buffering', () => {
 
 test('observation validation omits all trust and maturity controls', () => {
   const result = validateObservationInput({
-    record_id: '10000000-0000-4000-8000-000000000001',
-    content: 'A sanitized generalized observation.',
+    record_id: 'PUB-E-DFSMS-10000000-0000-4000-8000-000000000001',
+    case_fingerprint: 'synthetic-case-001',
+    result: 'A sanitized generalized observation.',
     sanitized: true,
     generalized: true,
     raw_evidence_included: false,
   });
 
   assert.deepEqual(result, {
-    p_record_id: '10000000-0000-4000-8000-000000000001',
-    p_content: 'A sanitized generalized observation.',
-    p_sanitized: true,
-    p_generalized: true,
-    p_raw_evidence_included: false,
+    p_record_id: 'PUB-E-DFSMS-10000000-0000-4000-8000-000000000001',
+    p_case_fingerprint: 'synthetic-case-001',
+    p_result: 'A sanitized generalized observation.',
   });
   for (const field of ['source_type', 'validated', 'independent', 'privacy_status', 'maturity']) {
     assert.equal(Object.hasOwn(result, field), false);
@@ -191,14 +198,15 @@ test('observation validation omits all trust and maturity controls', () => {
 
 test('observation validation rejects invalid identifiers and forged trust fields', () => {
   const valid = {
-    record_id: '10000000-0000-4000-8000-000000000001',
-    content: 'A sanitized generalized observation.',
+    record_id: 'PUB-E-DFSMS-10000000-0000-4000-8000-000000000001',
+    case_fingerprint: 'synthetic-case-001',
+    result: 'A sanitized generalized observation.',
     sanitized: true,
     generalized: true,
     raw_evidence_included: false,
   };
 
-  assert.throws(() => validateObservationInput({ ...valid, record_id: 'not-a-uuid' }), InputError);
+  assert.throws(() => validateObservationInput({ ...valid, record_id: 'contains whitespace' }), InputError);
   assert.throws(() => validateObservationInput({ ...valid, validated: true }), InputError);
   assert.throws(() => validateObservationInput({ ...valid, independent: true }), InputError);
   assert.throws(() => validateObservationInput({ ...valid, source_type: 'MPBSDP' }), InputError);

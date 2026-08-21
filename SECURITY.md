@@ -75,7 +75,9 @@ Public GPT must never receive `SUPABASE_SERVICE_ROLE_KEY`. Trusted-ingestion and
 
 Do not commit real values for any runtime variable. `.env.example` contains placeholders only; real values belong in the Supabase secret manager and the Public GPT Action secret configuration as applicable.
 
-The database tables have Row Level Security enabled and no direct `anon`, `authenticated`, or runtime `service_role` table grants. The Edge Function's runtime role can execute only the restricted database RPCs. Audit events reject updates and deletes.
+Fresh installations remove direct runtime table DML and use restricted database RPCs. The existing non-empty Knowledge Service currently retains `service_role` direct table DML during the coordinated RPC transition; those grants must not be revoked until the replacement Edge Function is deployed and validated.
+
+The existing maturity functions currently inherit `PUBLIC EXECUTE`, including the `SECURITY DEFINER` function that recomputes maturity and may insert audit state. Public V1.2 does not change these ACLs. Any hardening requires a separate dependency review, approval, and runtime validation.
 
 Public submissions remain `UNASSESSED` and untrusted. Automated input screening is defense in depth and does not replace privacy review.
 
